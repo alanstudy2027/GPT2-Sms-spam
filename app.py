@@ -1,61 +1,40 @@
+import os
 import streamlit as st
 import tensorflow as tf
-import numpy as np
+import gdown
 
-# ------------------------------
-# Load model with caching
-# ------------------------------
-@st.cache_resource
-def load_model():
-    model = tf.keras.models.load_model("gpt2_sms_classifier.keras")
-    return model
+# =====================
+# Model Download Logic
+# =====================
+MODEL_PATH = "gpt2_sms_classifier.keras"
+FILE_ID = "1JygwDhgiAaTMF1AZCdNpltmrL-iwF3q4"  # from your Drive link
+URL = f"https://drive.google.com/uc?id={FILE_ID}"
 
-model = load_model()
+# Download the model if it doesn't exist
+if not os.path.exists(MODEL_PATH):
+    st.info("Downloading model from Google Drive...")
+    gdown.download(URL, MODEL_PATH, quiet=False)
+    st.success("Model downloaded successfully!")
 
-# ------------------------------
-# Preprocessing function
-# ------------------------------
-def preprocess_text(text):
-    """
-    Preprocess input text for GPT-2 SMS classifier.
-    You may need to modify this based on how your model was trained.
-    """
-    # Example: simple lowercasing
-    return text.lower()
+# =====================
+# Load Model
+# =====================
+model = tf.keras.models.load_model(MODEL_PATH)
 
-# ------------------------------
-# Prediction function
-# ------------------------------
-def predict_sms(text):
-    processed_text = preprocess_text(text)
-    
-    # Model expects tokenized input; update if you used a tokenizer
-    # Here assuming a simple example of text as input
-    input_array = np.array([processed_text])
-    
-    # Predict
-    prediction = model.predict(input_array)
-    
-    # Assuming binary classification: 0 = ham, 1 = spam
-    label = "Spam" if np.argmax(prediction, axis=1)[0] == 1 else "Ham"
-    confidence = np.max(prediction)
-    return label, confidence
+# =====================
+# Streamlit App
+# =====================
+st.title("GPT-2 SMS Classifier")
+st.write("Enter a message to classify it as spam or ham.")
 
-# ------------------------------
-# Streamlit UI
-# ------------------------------
-st.set_page_config(page_title="GPT-2 SMS Classifier", layout="centered")
-st.title("📩 GPT-2 SMS Classifier")
-st.write("Classify SMS messages as Spam or Ham!")
+user_input = st.text_area("Your Message:")
 
-# Input
-sms_input = st.text_area("Enter SMS message:")
-
-# Predict button
-if st.button("Predict"):
-    if sms_input.strip() == "":
-        st.warning("Please enter a message to classify.")
+if st.button("Classify"):
+    if user_input.strip() == "":
+        st.warning("Please enter a message!")
     else:
-        label, confidence = predict_sms(sms_input)
-        st.success(f"Prediction: **{label}**")
-        st.info(f"Confidence: {confidence:.2f}")
+        # Make prediction
+        # Assuming your model outputs probabilities for two classes [ham, spam]
+        pred = model.predict([user_input])
+        pred_class = "Spam" if pred[0][1] > 0.5 else "Ham"
+        st.write(f"Prediction: **{pred_class}**")
